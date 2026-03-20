@@ -9,7 +9,6 @@ permissions:
   security-events: write
 
 env:
-  # This addresses your Node.js 20 deprecation warning
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -19,23 +18,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug - List Files
-        # This will show us if go.mod actually exists in the runner
-        run: ls -R
-
       - name: Install Snyk CLI
         uses: snyk/actions/setup@master
 
       - name: Run Snyk Test
-        run: |
-          # The '--all-projects' flag helps if your go.mod is in a subfolder
-          snyk test --sarif-file-output=snyk.sarif --all-projects
+        # The --all-projects flag is safest if your go.mod is hidden in a folder
+        run: snyk test --sarif-file-output=snyk.sarif --all-projects
         continue-on-error: true 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload SARIF file
-        # Updated to v4 as per your previous warning
+      - name: Upload to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
+
+      - name: Save SARIF as Downloadable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-sarif-report
+          path: snyk.sarif
+          retention-days: 5 # Keeps the file for 5 days to save space
