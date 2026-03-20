@@ -1,4 +1,4 @@
-name: Snyk SAST Export
+name: Snyk SAST to Cortex Ingestion
 
 on:
   push:
@@ -6,13 +6,9 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  snyk-sast:
+  snyk-ingestion:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,21 +17,22 @@ jobs:
       - name: Install Snyk CLI
         uses: snyk/actions/setup@master
 
-      - name: Run Snyk Code (SAST Only)
-        # We use 'code test' to generate SAST-specific SARIF
+      - name: Run Snyk Code (SAST)
+        # We must use 'code test' to generate the SAST-only SARIF Cortex requires
         run: snyk code test --sarif-file-output=snyk.sarif
         continue-on-error: true 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: snyk.sarif
-
-      - name: Archive SARIF for Download
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-sast-report
-          path: snyk.sarif
-          retention-days: 5
+      - name: Ingest SARIF to Cortex XDR
+        run: |
+          # The -d @filename syntax sends the actual file content
+          curl -X POST "https://api-neur-cxsiamp.xdr.eu.paloaltonetworks.com/public_api/appsec/v1/collectors/69bd401a1dc41618ccc66c34?repository_id=${{ github.event.repository.name }}&branch=${{ github.ref_name }}" \
+          -H "x-crtx-auth-id: ${{ secrets.CORTEX_TOKEN_ID }}" \
+          -H "Authorization: ${{ secrets.CORTEX_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d @snyk.sarif
+        env:
+          # These must be set in your GitHub Repo Settings > Secrets
+          CORTEX_TOKEN_ID: ${{ secrets.CORTEX_TOKEN_ID }}
+          CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
