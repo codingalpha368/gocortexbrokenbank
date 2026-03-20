@@ -17,15 +17,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+
       - name: Run Snyk to generate SARIF
-        uses: snyk/actions/node@master # Use the action matching your language (node, python, go, etc.)
-        continue-on-error: true # Crucial: Don't stop the build if vulns are found, so we can upload the SARIF
+        # We use 'run' here to ensure the CLI outputs exactly where we want
+        run: snyk test --sarif-file-output=snyk.sarif
+        continue-on-error: true 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --sarif-file-output=snyk.sarif
 
       - name: Upload SARIF file to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        # Updated to v4 to fix your warning
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
