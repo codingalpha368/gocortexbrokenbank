@@ -26,8 +26,8 @@ jobs:
 
       - name: Ingest SARIF to Cortex XDR
         run: |
-          # The -d @filename syntax sends the actual file content
-          curl -X POST "https://api-neur-cxsiamp.xdr.eu.paloaltonetworks.com/public_api/appsec/v1/collectors/69bd401a1dc41618ccc66c34?repository_id=${{ github.event.repository.name }}&branch=${{ github.ref_name }}" \
+          # Replace 'YOUR_CORTEX_ASSET_ID' with the ID from the Cortex UI
+          curl -X POST "https://api-neur-cxsiamp.xdr.eu.paloaltonetworks.com/public_api/appsec/v1/collectors/69bd401a1dc41618ccc66c34?repository_id=d8a825a41f66be5269d6d49d2a27cd00b56b6cf4328eb81c475978a77df525e0&branch=${{ github.ref_name }}" \
           -H "x-crtx-auth-id: ${{ secrets.CORTEX_TOKEN_ID }}" \
           -H "Authorization: ${{ secrets.CORTEX_API_KEY }}" \
           -H "Content-Type: application/json" \
