@@ -1,4 +1,4 @@
-name: Snyk Security Scan
+name: Snyk to Cortex AppSec
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  snyk:
+  snyk-to-cortex:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,21 +21,27 @@ jobs:
       - name: Install Snyk CLI
         uses: snyk/actions/setup@master
 
-      - name: Run Snyk Test
-        # The --all-projects flag is safest if your go.mod is hidden in a folder
-        run: snyk test --sarif-file-output=snyk.sarif --all-projects
+      - name: Run Snyk Code Scan (SAST)
+        # We MUST use 'code test' for the Cortex AppSec collector
+        run: snyk code test --sarif-file-output=snyk.sarif
         continue-on-error: true 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload to GitHub Security Tab
+      - name: Upload SARIF to Cortex XDR
+        # This replaces the manual curl. We use the file we just generated.
+        run: |
+          curl -X POST "https://api-neur-cxsiamp.xdr.eu.paloaltonetworks.com/public_api/appsec/v1/collectors/69bd44c91dc41618ccc66c36?repository_id=${{ github.event.repository.name }}&branch=${{ github.ref_name }}" \
+          -H "x-crtx-auth-id: ${{ secrets.CORTEX_TOKEN_ID }}" \
+          -H "Authorization: ${{ secrets.CORTEX_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d @snyk.sarif
+        env:
+          # Make sure you add these two secrets to your GitHub Repo Settings
+          CORTEX_TOKEN_ID: ${{ secrets.CORTEX_TOKEN_ID }}
+          CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
+
+      - name: Upload to GitHub Security Tab (Optional)
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
-
-      - name: Save SARIF as Downloadable Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-sarif-report
-          path: snyk.sarif
-          retention-days: 5 # Keeps the file for 5 days to save space
